@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text & Translation Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #0d6efd;
+        }
+        .result-area {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .btn-group {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Speech-to-Text & Translation Tool</h1>
+        
+        <!-- File Upload Section -->
+        <div class="upload-area" id="dropZone">
+            <h4>Upload Audio File</h4>
+            <p class="text-muted">Drag and drop or click to select (Max: 500MB)</p>
+            <p class="text-muted">Supported format: WAV</p>
+            <input type="file" id="fileInput" accept=".wav" style="display: none;">
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading" id="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Processing...</p>
+        </div>
+
+        <!-- Transcription Result -->
+        <div class="result-area" id="transcriptionResult" style="display: none;">
+            <h5>Transcription:</h5>
+            <p id="transcribedText"></p>
+            
+            <!-- Translation Controls -->
+            <div class="btn-group">
+                <select class="form-select" id="targetLanguage">
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="ru">Russian</option>
+                    <option value="ja">Japanese</option>
+                    <option value="ko">Korean</option>
+                    <option value="zh-cn">Chinese</option>
+                </select>
+                <button class="btn btn-primary" onclick="translateText()">Translate</button>
+                <button class="btn btn-success" onclick="textToSpeech()">Text to Speech</button>
+            </div>
+        </div>
+
+        <!-- Translation Result -->
+        <div class="result-area" id="translationResult" style="display: none;">
+            <h5>Translation:</h5>
+            <p id="translatedText"></p>
+        </div>
+    </div>
+
+    <script>
+        // File Upload Handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const loading = document.getElementById('loading');
+        const transcriptionResult = document.getElementById('transcriptionResult');
+        const translationResult = document.getElementById('translationResult');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#0d6efd';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = '#ccc';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+            const files = e.dataTransfer.files;
+            if (files.length) handleFile(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (file.size > 500 * 1024 * 1024) {
+                alert('File size exceeds 500MB limit');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            loading.style.display = 'block';
+            transcriptionResult.style.display = 'none';
+            translationResult.style.display = 'none';
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                document.getElementById('transcribedText').textContent = data.text;
+                transcriptionResult.style.display = 'block';
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                alert('Error processing file: ' + error);
+            });
+        }
+
+        function translateText() {
+            const text = document.getElementById('transcribedText').textContent;
+            const targetLang = document.getElementById('targetLanguage').value;
+
+            loading.style.display = 'block';
+            translationResult.style.display = 'none';
+
+            fetch('/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: text,
+                    target_lang: targetLang
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                document.getElementById('translatedText').textContent = data.translated_text;
+                translationResult.style.display = 'block';
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                alert('Error translating text: ' + error);
+            });
+        }
+
+        function textToSpeech() {
+            const text = document.getElementById('transcribedText').textContent;
+            const lang = document.getElementById('targetLanguage').value;
+
+            loading.style.display = 'block';
+
+            fetch('/text-to-speech', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: text,
+                    lang: lang
+                })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                loading.style.display = 'none';
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'speech.mp3';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                alert('Error converting to speech: ' + error);
+            });
+        }
+    </script>
+</body>
+</html> 

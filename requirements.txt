@@ -1,0 +1,6 @@
+SpeechRecognition==3.10.0
+PyAudio==0.2.13
+flask==2.3.3
+deep-translator==1.11.4
+gTTS==2.3.2
+python-dotenv==1.0.0 
